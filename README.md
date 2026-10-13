@@ -11,7 +11,7 @@ A small Windows desktop capsule for finding local agent skills and copying an in
 - Four interchangeable themes: graphite (default), paper, mist blue, amber.
 - Chinese display-only glosses, original descriptions in details, editable Chinese titles/descriptions/tags, and bilingual search. No skill files are changed or sent to a translation service. Unrecognized English skills require a manual gloss; built-in glosses are summaries, not authoritative translations.
 - Font presets (12/13/15/17px) and UI zoom (90–150%) persist independently. Helper and disabled text use theme-specific colors tested for at least 4.5:1 contrast.
-- Theme-colored usage bars and frequent-first sorting. Copies count locally; selection and AI execution do not. Hover for counts. Stable buckets: 0, 1–3, 4–10, 11–30, 31+.
+- Theme-colored usage bars and frequent-first sorting. Copies count locally; earlier versions also counted insertion requests. Selection and AI execution do not count. Hover for counts. Stable buckets: 0, 1–3, 4–10, 11–30, 31+.
 - Add/remove local source folders without modifying original skills.
 - Agent-specific invocation text copied to the clipboard.
 - `Ctrl+Alt+K`: bring up the picker.
