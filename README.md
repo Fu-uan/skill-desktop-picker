@@ -47,15 +47,21 @@ The clipboard is replaced with the invocation text. Insertion uses Windows focus
 
 The list now displays **Agent compatibility** separately from directory discovery. Target-specific filters spell out the chosen agent, e.g. **支持 Codex**. Compatibility starts unknown; explicit manual marks record their basis and become unknown again when the skill instructions change. Directory presence and copy counts never establish compatibility. Use the skill details to maintain per-agent support labels. DeepSeek Harness is a selectable target with generic natural-language drafts, not a verified native integration.
 
-Import currently means adding an existing local directory. Dragged URLs/ZIPs are not downloaded or installed; the UI shows a clear explanation. To index a downloaded skill, extract its full folder and choose **技能来源 → 添加目录**. Installing it into an agent remains a separate operation.
+## Import from GitHub
+
+Drag a public `https://github.com/owner/repo` link, a `/tree/ref/skill-directory` link or a `/blob/ref/path/SKILL.md` link onto the desktop picker, or use **链接导入**. Parse the link, choose a skill, inspect its description and file list, select a parent directory and destination agent, then click **确认导入**. The app downloads the whole skill folder at the previewed commit and adds it to its catalog. It never runs downloaded scripts or replaces an existing skill folder.
+
+Choose **共享技能库** to save only to your library. For agent installation, choose that agent's actual configured skills directory as the parent; the picker does not change the agent's configuration or guarantee hot reload. Compatibility remains independent from import location.
+
+Only public GitHub repositories are supported. Private repositories, ZIP import, branch names containing `/`, symlinks/submodules, huge/truncated trees, and packages over 200 files / 20 MB (3 MB per file) are not supported. Unauthenticated GitHub API limits apply; errors are shown in the import panel. No GitHub credentials are read by this importer. Existing downloaded skills can still be indexed using **技能来源 → 添加目录**.
 
 “此 Agent 已发现 · 待验证” means a `SKILL.md` was found under a source associated with that agent. It does **not** prove that the current agent session loaded it, dependencies are installed, permissions are granted, or its instructions are compatible. Duplicate physical directories are deduplicated while preserving agent associations. Equal names from different folders remain separate.
 
-This release does not install/synchronize skills, read other apps' conversation text, recommend from hidden drafts, or verify skill execution. Remote agents, WSL profiles, custom workspace paths and plugin caches must be added explicitly when accessible. Classification is a local name-based heuristic. Refresh rescans sources; continuous file watching is not yet implemented.
+This release does not synchronize updates across agents, read other apps' conversation text, recommend from hidden drafts, or verify skill execution. Remote agents, WSL profiles, custom workspace paths and plugin caches must be added explicitly when accessible. Classification is a local name-based heuristic. Refresh rescans sources; continuous file watching is not yet implemented.
 
 ## Security and privacy
 
-Skills are parsed as text and never executed during discovery. The renderer has no Node access; a narrow isolated preload exposes local actions. No telemetry, accounts or cloud requests are used by the running app. The Windows helper reads only foreground window title/process/handle for insertion, not conversation content. No skill contents are shipped in this repository.
+Skills are parsed as text and never executed during discovery or import. The renderer has no Node access; a narrow isolated preload exposes local actions. No telemetry or accounts are used. Explicit GitHub import sends the repository/path to GitHub's public API; local skills and conversations are not uploaded. The Windows helper reads only foreground window title/process/handle for insertion, not conversation content. No personal skill contents are shipped in this repository.
 
 ## Project structure
 

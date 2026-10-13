@@ -1,5 +1,12 @@
 # Validation
 
+GitHub import update:
+
+- 15 unit tests passed, including URL validation, Windows path restrictions, complete-file import, no-overwrite behavior and symlink rejection.
+- Live public GitHub import of `anthropics/skills` → `skills/frontend-design`: previewed and downloaded 2 files pinned to commit `dbd4588f9e1033efb41dad4bef2f7947c8993d44` into a temporary test folder. No scripts executed; not registered as a user skill.
+- Desktop renderer startup passed with 119 existing skills after adding import UI.
+- Drag/drop events are implemented in the desktop renderer; native drag gestures still require user confirmation. Private repositories and ZIP are outside this release.
+
 Window collapse fix: Windows ignored setSize on a non-resizable frameless window (requested 76 DIP, observed 741 DIP). Temporarily enabling resizing for the synchronous size change reduced the native bounds to 77 DIP (DPI rounding). Native regression check passed 20 transitions across 90/100/110/125/150% UI scales and confirmed the resize lock is restored. Run using Electron with tests/window-bounds.cjs. Existing 7 unit checks also passed.
 
 2026-10-13 initial development:

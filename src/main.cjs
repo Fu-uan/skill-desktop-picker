@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, clipboard, globalShortcut, screen, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, clipboard, globalShortcut, screen, shell, net } = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
@@ -9,6 +9,8 @@ const { discover, invocation } = require('./catalog.cjs');
 const { displayFor, fingerprint } = require('./display.cjs');
 const { setLockedWindowSize } = require('./window-size.cjs');
 const { AGENTS, compatibilityFor, markCompatibility } = require('./compatibility.cjs');
+const {createImporter}=require('./github-import.cjs');
+let importer,importDestination=null,importBusy=false;
 let win, settings, catalog = [], target = null, busy = false, panelExpanded = true;
 const home = os.homedir();
 const defaultSources = () => [
@@ -27,6 +29,7 @@ async function capture(){if(busy)return;busy=true;try{const t=await bridge('fore
 function resize(expanded){panelExpanded=expanded;const scale=(settings.zoom||100)/100;const height=expanded?740:76; const work=screen.getDisplayMatching(win.getBounds()).workArea; setLockedWindowSize(win,Math.min(Math.round(470*scale),work.width-24),Math.min(Math.round(height*scale),work.height-24));const b=win.getBounds();win.setPosition(Math.max(work.x,Math.min(b.x,work.x+work.width-b.width)),Math.max(work.y,Math.min(b.y,work.y+work.height-b.height)));}
 function handle(name,fn){ipcMain.handle(name,async(event,...args)=>{if(event.sender!==win.webContents)throw new Error('Invalid sender');return fn(...args);});}
 app.whenReady().then(async()=>{
+  importer=createImporter((url,options)=>net.fetch(url,options));
   try{settings=JSON.parse(await fs.readFile(storePath(),'utf8'));}catch{settings={sources:defaultSources(),theme:'graphite',favorites:[],agent:'codex'};}
   win=new BrowserWindow({width:430,height:650,frame:false,transparent:true,alwaysOnTop:true,resizable:false,show:false,title:'Skill Desktop Picker',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
@@ -44,6 +47,10 @@ app.whenReady().then(async()=>{
   handle('pin',value=>win.setAlwaysOnTop(!!value));
   handle('minimize',()=>win.minimize());handle('quit',()=>app.quit());
   handle('open-skill',id=>{const s=catalog.find(s=>s.id===id);if(s)shell.showItemInFolder(s.file);});
+  handle('import-preview',link=>{if(importBusy)throw new Error('正在导入，请稍候');importDestination=null;return importer.preview(link);});
+  handle('import-inspect',(token,skillPath)=>{if(importBusy)throw new Error('正在导入，请稍候');return importer.inspect(token,skillPath);});
+  handle('import-destination',async()=>{const result=await dialog.showOpenDialog(win,{properties:['openDirectory','createDirectory'],title:'选择技能保存的父目录（不会覆盖同名目录）'});if(!result.canceled)importDestination=result.filePaths[0];return importDestination;});
+  handle('import-install',async(token,agent)=>{if(importBusy)throw new Error('正在导入，请稍候');if(!importDestination)throw new Error('请先选择保存目录');if(agent!=='library'&&!Object.hasOwn(AGENTS,agent))throw new Error('未知目标 Agent');importBusy=true;try{const result=await importer.install(token,importDestination);settings.sources.push({path:result.directory,agent});await save();return result;}finally{importBusy=false;}});
   handle('ready',()=>{if(process.argv.includes('--smoke-test')){console.log(JSON.stringify({windowLoaded:true,rendererReady:true,skills:catalog.length}));app.quit();}});
   win.webContents.on('render-process-gone',(_,details)=>console.error('renderer stopped:',details.reason));
   await win.loadFile(path.join(__dirname,'index.html'));
