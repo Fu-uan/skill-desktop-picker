@@ -45,6 +45,10 @@ The clipboard is replaced with the invocation text. Insertion uses Windows focus
 
 ## Honest availability labels
 
+The list now displays **Agent compatibility** separately from directory discovery. Target-specific filters spell out the chosen agent, e.g. **支持 Codex**. Compatibility starts unknown; explicit manual marks record their basis and become unknown again when the skill instructions change. Directory presence and copy counts never establish compatibility. Use the skill details to maintain per-agent support labels. DeepSeek Harness is a selectable target with generic natural-language drafts, not a verified native integration.
+
+Import currently means adding an existing local directory. Dragged URLs/ZIPs are not downloaded or installed; the UI shows a clear explanation. To index a downloaded skill, extract its full folder and choose **技能来源 → 添加目录**. Installing it into an agent remains a separate operation.
+
 “此 Agent 已发现 · 待验证” means a `SKILL.md` was found under a source associated with that agent. It does **not** prove that the current agent session loaded it, dependencies are installed, permissions are granted, or its instructions are compatible. Duplicate physical directories are deduplicated while preserving agent associations. Equal names from different folders remain separate.
 
 This release does not install/synchronize skills, read other apps' conversation text, recommend from hidden drafts, or verify skill execution. Remote agents, WSL profiles, custom workspace paths and plugin caches must be added explicitly when accessible. Classification is a local name-based heuristic. Refresh rescans sources; continuous file watching is not yet implemented.

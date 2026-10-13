@@ -1,5 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('picker',{
+ compatibility:(id,agent,state,note)=>ipcRenderer.invoke('compatibility',id,agent,state,note),
  ready:()=>ipcRenderer.invoke('ready'),
  display:(id,value)=>ipcRenderer.invoke('display',id,value),appearance:(font,zoom)=>ipcRenderer.invoke('appearance',font,zoom),
  load:()=>ipcRenderer.invoke('load'), settings:p=>ipcRenderer.invoke('settings',p),
