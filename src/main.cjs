@@ -37,9 +37,10 @@ app.whenReady().then(async()=>{
   handle('pin',value=>win.setAlwaysOnTop(!!value));
   handle('minimize',()=>win.minimize());handle('quit',()=>app.quit());
   handle('open-skill',id=>{const s=catalog.find(s=>s.id===id);if(s)shell.showItemInFolder(s.file);});
+  handle('ready',()=>{if(process.argv.includes('--smoke-test')){console.log(JSON.stringify({windowLoaded:true,rendererReady:true,skills:catalog.length}));app.quit();}});
   win.webContents.on('render-process-gone',(_,details)=>console.error('renderer stopped:',details.reason));
   await win.loadFile(path.join(__dirname,'index.html'));
-  if(process.argv.includes('--smoke-test')){const result=await discover(settings.sources);console.log(JSON.stringify({windowLoaded:true,skills:result.items.length,metadataErrors:result.errors.length}));app.quit();return;}
+  if(process.argv.includes('--smoke-test')){setTimeout(()=>{console.error('Renderer readiness timeout');app.exit(1);},15000).unref();return;}
   win.show();
   globalShortcut.register('Control+Alt+K',async()=>{await capture();win.show();win.focus();});
 });

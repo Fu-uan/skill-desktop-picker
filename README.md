@@ -9,6 +9,7 @@ A small Windows desktop capsule for finding and selecting local agent skills, th
 - Frameless draggable capsule, always-on-top toggle, collapse, minimize.
 - Search names/descriptions; category, selected, favorites and agent discovery filters.
 - Four interchangeable themes: graphite (default), paper, mist blue, amber.
+- Theme-colored usage bars and frequent-first sorting. Copy/insertion requests count locally; selection and AI execution do not. Hover for counts. Stable buckets: 0, 1–3, 4–10, 11–30, 31+.
 - Add/remove local source folders without modifying original skills.
 - Agent-specific invocation drafts; copy or insert without sending.
 - `Ctrl+Alt+K`: remember the active window and bring up the picker.

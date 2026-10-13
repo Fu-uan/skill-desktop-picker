@@ -3,7 +3,7 @@ let items=[],settings={},chosen=new Set(),category='全部',expanded=true,pinned
 function message(text){$('message').textContent=text;}
 function button(text,fn,cls){const b=document.createElement('button');b.textContent=text;b.onclick=fn;if(cls)b.className=cls;return b;}
 function applySettings(){document.body.dataset.theme=settings.theme;$('theme').value=settings.theme;$('agent').value=settings.agent;}
-async function load(){try{$('refresh').disabled=true;const r=await api.load();items=r.items;settings=r.settings;chosen=new Set([...chosen].filter(id=>items.some(s=>s.id===id)));applySettings();render();renderSources();if(r.target)showTarget(r.target);message(r.errors.length?`${r.errors.length} 个技能元数据无法解析；其余已载入。`:'目录发现不代表运行验证通过 · 插入不会自动发送');}catch(e){message(e.message);}finally{$('refresh').disabled=false;}}
+async function load(){try{$('refresh').disabled=true;const r=await api.load();items=r.items;settings=r.settings;chosen=new Set([...chosen].filter(id=>items.some(s=>s.id===id)));applySettings();render();renderSources();if(r.target)showTarget(r.target);message(r.errors.length?`${r.errors.length} 个技能元数据无法解析；其余已载入。`:'目录发现不代表运行验证通过 · 插入不会自动发送');await api.ready();}catch(e){message(e.message);}finally{$('refresh').disabled=false;}}
 function render(){
  $('categories').replaceChildren();for(const c of ['全部','学术','办公','检索','设计','开发','其他'])$('categories').append(button(c,()=>{category=c;render();},c===category?'active':''));
  const agent=$('agent').value,scope=$('scope').value,q=$('query').value.toLowerCase().trim();
