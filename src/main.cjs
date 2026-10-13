@@ -6,7 +6,7 @@ const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const exec = promisify(execFile);
 const { discover, invocation } = require('./catalog.cjs');
-let win, settings, catalog = [], target = null, busy = false, timer;
+let win, settings, catalog = [], target = null, busy = false;
 const home = os.homedir();
 const defaultSources = () => [
   ['codex', path.join(home,'.codex','skills')], ['codex',path.join(home,'.agents','skills')],
@@ -32,7 +32,7 @@ app.whenReady().then(async()=>{
   handle('settings',async patch=>{if(patch.theme&&['graphite','paper','blue','amber'].includes(patch.theme))settings.theme=patch.theme;if(patch.agent&&['codex','claude','hermes','openclaw','other'].includes(patch.agent))settings.agent=patch.agent;if(Array.isArray(patch.favorites))settings.favorites=patch.favorites.filter(v=>typeof v==='string');await save();return settings;});
   handle('add-source',async agent=>{if(!['codex','claude','hermes','openclaw','library'].includes(agent))throw new Error('未知来源类型');const result=await dialog.showOpenDialog(win,{properties:['openDirectory'],title:'选择包含技能的目录'});if(!result.canceled){const p=result.filePaths[0];if(!settings.sources.some(s=>s.path===p&&s.agent===agent))settings.sources.push({path:p,agent});await save();}return settings;});
   handle('remove-source',async index=>{if(Number.isInteger(index)&&index>=0&&index<settings.sources.length){settings.sources.splice(index,1);await save();}return settings;});
-  handle('draft',async(ids,agent,insert)=>{if(!Array.isArray(ids)||ids.length>50)throw new Error('请选择 1–50 个技能');const items=ids.map(id=>catalog.find(s=>s.id===id));if(items.some(s=>!s))throw new Error('技能已变化，请刷新');const text=invocation(items,agent);if(insert){if(!target)throw new Error('先在目标输入框放置光标，再按 Ctrl+Alt+K 呼出浮窗');const t={...target};if(/powershell|command prompt|命令提示符/i.test(t.title)&&!/(codex|claude|hermes|openclaw)/i.test(t.title))throw new Error('目标似乎是普通终端，请使用复制并确认 Agent 输入框');clipboard.writeText(text);await bridge('paste',t.handle);}else clipboard.writeText(text);return text;});
+  handle('draft',async(ids,agent,insert)=>{if(!Array.isArray(ids)||ids.length>50)throw new Error('请选择 1–50 个技能');const items=[...new Set(ids)].map(id=>catalog.find(s=>s.id===id));if(items.some(s=>!s))throw new Error('技能已变化，请刷新');const text=invocation(items,agent);if(insert){if(!target)throw new Error('先在目标输入框放置光标，再按 Ctrl+Alt+K 呼出浮窗');const t={...target};if(/powershell|command prompt|命令提示符/i.test(t.title)&&!/(codex|claude|hermes|openclaw)/i.test(t.title))throw new Error('目标似乎是普通终端，请使用复制并确认 Agent 输入框');clipboard.writeText(text);await bridge('paste',t.handle);}else clipboard.writeText(text);settings.usage ||= {};for(const item of items){const entry=settings.usage[item.id] ||= {count:0,agents:{}};entry.count++;entry.agents[agent]=(entry.agents[agent]||0)+1;entry.lastUsed=new Date().toISOString();}await save();return {text,usage:settings.usage};});
   handle('expand',expanded=>resize(!!expanded));
   handle('pin',value=>win.setAlwaysOnTop(!!value));
   handle('minimize',()=>win.minimize());handle('quit',()=>app.quit());
@@ -42,6 +42,5 @@ app.whenReady().then(async()=>{
   if(process.argv.includes('--smoke-test')){const result=await discover(settings.sources);console.log(JSON.stringify({windowLoaded:true,skills:result.items.length,metadataErrors:result.errors.length}));app.quit();return;}
   win.show();
   globalShortcut.register('Control+Alt+K',async()=>{await capture();win.show();win.focus();});
-  timer=setInterval(()=>{if(!win.isFocused())capture();},2000);timer.unref();
 });
-app.on('window-all-closed',()=>app.quit());app.on('will-quit',()=>{clearInterval(timer);globalShortcut.unregisterAll();});
+app.on('window-all-closed',()=>app.quit());app.on('will-quit',()=>globalShortcut.unregisterAll());
