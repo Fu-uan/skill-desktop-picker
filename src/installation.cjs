@@ -27,6 +27,19 @@ async function verifyInstalled(directory, name) {
   return { metadata: true, indexed: true, runtime: 'unverified' };
 }
 
+async function installOrIndex(installer, token, directory) {
+  try { return await installer.install(token, directory); }
+  catch (error) {
+    if (error.code !== 'SKILL_EXISTS') throw error;
+    try {
+      const verification = await verifyInstalled(error.directory, error.skillName);
+      return { directory: error.directory, name: error.skillName, existing: true, verification };
+    } catch (invalid) {
+      throw new Error('同名目录存在，但技能检查未通过：' + invalid.message + '。目录：' + error.directory);
+    }
+  }
+}
+
 function createLocalImporter() {
   let plan;
   async function preview(directory) {
@@ -66,7 +79,7 @@ function createLocalImporter() {
     const selected = plan;
     const base = await fs.realpath(parent), directory = path.join(base, selected.metadata.name);
     try { await fs.mkdir(directory); }
-    catch (error) { if (error.code === 'EEXIST') throw new Error('同名目录已存在，未覆盖。可返回技能列表查找已安装的技能。'); throw error; }
+    catch (error) { if (error.code === 'EEXIST') {const conflict=new Error('同名目录已存在');conflict.code='SKILL_EXISTS';conflict.directory=directory;conflict.skillName=selected.metadata.name;throw conflict;} throw error; }
     try {
       for (const file of selected.files) {
         const destination = path.join(directory, file.path);
@@ -84,4 +97,4 @@ function createLocalImporter() {
   return { preview, install };
 }
 
-module.exports = { destinationFor, verifyInstalled, createLocalImporter };
+module.exports = { destinationFor, verifyInstalled, createLocalImporter, installOrIndex };

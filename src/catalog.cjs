@@ -13,7 +13,7 @@ function parseSkill(text) {
 function categoryFor(skill) {
   const n = skill.name.toLowerCase();
   if (/lark|calendar|mail|document|spreadsheet|slides|presentation/.test(n)) return '办公';
-  if (/econ|nature|paper|citation|scipilot|research/.test(n)) return '学术';
+  if (/econ|nature|paper|citation|scipilot|research|anti-defensive-writing/.test(n)) return '学术';
   if (/search|browse/.test(n)) return '检索';
   if (/design|figma|image|pet|visual/.test(n)) return '设计';
   if (/debug|test|git|code|develop|plan|review|plugin/.test(n)) return '开发';

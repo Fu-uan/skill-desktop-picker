@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 // Display-only Chinese glosses. They never replace the source skill or its invocation name.
 const glossary = {
+ 'anti-defensive-writing':['反防御性论文写作','围绕论文贡献组织论证，识别并修改防御性写作、过度自我质疑和实验流水账。'],
  'anysearch':['联网检索','搜索网络与专业领域资料，批量查询并提取网页内容。'],
  'brainstorming':['需求与方案讨论','澄清需求，比较设计方案，再进入实施。'],
  'design-ui':['界面与交互设计','设计界面、组件、布局、配色与交互流程。'],

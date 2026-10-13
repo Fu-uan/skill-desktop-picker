@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
-const { destinationFor, createLocalImporter, verifyInstalled } = require('../src/installation.cjs');
+const { destinationFor, createLocalImporter, verifyInstalled, installOrIndex } = require('../src/installation.cjs');
 
 test('uses agent defaults, remembers custom destinations and leaves unknown agents unconfigured', () => {
   assert.equal(destinationFor('codex', {}, '/user', '/library', {}).directory, path.join('/user', '.codex', 'skills'));
@@ -29,8 +29,14 @@ test('local install copies support files, preserves source and verifies discover
   assert.equal(await fs.readFile(path.join(result.directory, 'scripts', 'run.js'), 'utf8'), 'throw new Error("never execute");');
   const second = await installer.preview(source);
   await assert.rejects(installer.install(second.token, dest), /同名目录/);
+  const recovered = await installOrIndex(installer, second.token, dest);
+  assert.equal(recovered.existing, true);
+  assert.equal(recovered.verification.indexed, true);
+  assert.equal(recovered.files, undefined);
+  assert.equal(await fs.readFile(path.join(result.directory, 'SKILL.md'), 'utf8'), skill);
   await fs.writeFile(path.join(result.directory, 'SKILL.md'), 'bad');
   await assert.rejects(verifyInstalled(result.directory, 'demo'));
+  await assert.rejects(installOrIndex(installer, second.token, dest), /同名目录存在，但技能检查未通过/);
 });
 test('rejects a parent folder without a directly contained SKILL.md', async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'picker-empty-'));

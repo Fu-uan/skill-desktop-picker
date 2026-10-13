@@ -64,7 +64,7 @@ function createImporter(fetcher=fetch){
  async function install(token,directory){
   const plan=planFor(token),selected=plan.selected;if(!selected)throw new Error('请先选择并预览技能');
   const base=await fs.realpath(directory),destination=path.join(base,selected.metadata.name);
-  try{await fs.lstat(destination);throw new Error('同名目录已存在，未重复安装。请返回技能列表查找，或在管理来源中检查扫描目录。');}catch(e){if(e.code!=='ENOENT')throw e;}
+  try{await fs.lstat(destination);const error=new Error('同名目录已存在');error.code='SKILL_EXISTS';error.directory=destination;error.skillName=selected.metadata.name;throw error;}catch(e){if(e.code!=='ENOENT')throw e;}
   const staging=await fs.mkdtemp(path.join(base,'.skill-import-'));
   try{
    for(const file of selected.files){const data=await bytesFor(plan,file);const target=path.join(staging,...file.relative.split('/'));await fs.mkdir(path.dirname(target),{recursive:true});await fs.writeFile(target,data,{flag:'wx'});}

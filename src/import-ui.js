@@ -81,8 +81,8 @@ const confirmImport=button('安装',async()=>{
   try{
     const result=await api.importInstall(importToken,importAgent.value,importLocal);
     importSelected=false;importStatus.textContent='';resultPanel.replaceChildren();resultPanel.hidden=false;sourceBlock.hidden=true;targetBlock.hidden=true;
-    const title=document.createElement('b');title.textContent=result.name+' · 安装完成';
-    const checks=document.createElement('p');checks.textContent='✓ '+result.files+' 个文件校验通过\n✓ SKILL.md 格式正确\n✓ 安装目录可重新扫描';
+    const title=document.createElement('b');title.textContent=result.name+(result.existing?' · 已加入列表':' · 安装完成');
+    const checks=document.createElement('p');checks.textContent=(result.existing?'✓ 已识别本地已有 Skill':'✓ '+result.files+' 个文件校验通过')+'\n✓ SKILL.md 格式正确\n✓ 安装目录可重新扫描';
     const notice=document.createElement('p');notice.textContent=result.notice;
     const location=document.createElement('details'),label=document.createElement('summary'),value=document.createElement('p');
     label.textContent='查看安装位置';value.textContent=result.directory;location.append(label,value);

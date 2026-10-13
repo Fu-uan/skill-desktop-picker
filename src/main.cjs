@@ -7,7 +7,7 @@ const { displayFor, fingerprint } = require('./display.cjs');
 const { setLockedWindowSize } = require('./window-size.cjs');
 const { AGENTS, compatibilityFor, markCompatibility } = require('./compatibility.cjs');
 const {createImporter}=require('./github-import.cjs');
-const {destinationFor,verifyInstalled,createLocalImporter}=require('./installation.cjs');
+const {destinationFor,verifyInstalled,createLocalImporter,installOrIndex}=require('./installation.cjs');
 let importer,localImporter,importBusy=false;
 let win, settings, catalog = [], panelExpanded = true;
 const home = os.homedir();
@@ -26,13 +26,13 @@ async function installSkill(token,agent,local){
   importBusy=true;
   try{
     await fs.mkdir(target.directory,{recursive:true});
-    const result=await (local?localImporter:importer).install(token,target.directory);
+    const result=await installOrIndex(local?localImporter:importer,token,target.directory);
     result.verification=await verifyInstalled(result.directory,result.name);
     settings.installations ||= {};
-    settings.installations[result.directory]={agent,name:result.name,files:result.files,checkedAt:new Date().toISOString()};
+    if(!result.existing)settings.installations[result.directory]={agent,name:result.name,files:result.files,checkedAt:new Date().toISOString()};
     if(!settings.sources.some(s=>s.path===target.directory&&s.agent===agent))settings.sources.push({path:target.directory,agent});
     await save();
-    return {...result,agent,target,notice:agent==='library'?'已保存到共享技能库。':'安装文件已校验。请重新打开目标 Agent 会话后调用；当前尚未验证会话加载及运行依赖。'};
+    return {...result,agent,target,notice:result.existing?'已找到本地 Skill 并恢复扫描来源，现可在列表中搜索。保留现有文件；未检查它是否与 GitHub 版本相同。':agent==='library'?'已保存到共享技能库。':'安装文件已校验。请重新打开目标 Agent 会话后调用；当前尚未验证会话加载及运行依赖。'};
   }finally{importBusy=false;}
 }
 function resize(expanded){panelExpanded=expanded;const scale=(settings.zoom||100)/100;const height=expanded?740:76; const work=screen.getDisplayMatching(win.getBounds()).workArea; setLockedWindowSize(win,Math.min(Math.round(470*scale),work.width-24),Math.min(Math.round(height*scale),work.height-24));const b=win.getBounds();win.setPosition(Math.max(work.x,Math.min(b.x,work.x+work.width-b.width)),Math.max(work.y,Math.min(b.y,work.y+work.height-b.height)));}
