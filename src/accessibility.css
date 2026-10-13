@@ -1,0 +1,22 @@
+:root{--font-size:13px;--muted:#c2c7bc;--disabled-bg:#3c4039;--disabled-fg:#c4c9be}
+body[data-theme=paper]{--muted:#53604f;--disabled-bg:#e3e7dc;--disabled-fg:#52604d}
+body[data-theme=blue]{--bg:#26333e;--muted:#c4d6e0;--disabled-bg:#3a4b58;--disabled-fg:#c3d3dd}
+body[data-theme=amber]{--muted:#dacbb5;--disabled-bg:#453c30;--disabled-fg:#dacbb5}
+body{font-size:var(--font-size)}
+.text b{font-size:calc(var(--font-size) + 1px);line-height:1.45}
+.text small{font-size:var(--font-size);line-height:1.65;max-height:none;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.original-name{display:block;font-size:calc(var(--font-size) - 1px);color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px}
+.status,.brand span,.target,#message,.palette,.topline button,.bar button,.palette button,.chip,.actions button,.bar,select,nav button{font-size:calc(var(--font-size) - 1px)}
+.status{line-height:1.5}.target{line-height:1.6}#message{line-height:1.65}
+button:disabled,.actions .primary:disabled{opacity:1;color:var(--disabled-fg);background:var(--disabled-bg);border:1px dashed var(--line);cursor:not-allowed}
+button:disabled:hover{background:var(--disabled-bg)}
+input::placeholder{color:var(--muted);opacity:1}
+.actions button{min-height:38px}.palette,.appearance{gap:10px}
+.appearance{display:flex;align-items:center;justify-content:space-between;margin-top:10px;color:var(--muted);font-size:calc(var(--font-size) - 1px)}
+.appearance label{display:flex;align-items:center;gap:8px}
+#details,#sources{font-size:var(--font-size);flex-shrink:0}
+#details label{display:block;margin:10px 0;color:var(--fg)}
+#details label input,#details textarea{display:block;width:100%;margin-top:5px;padding:8px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;font:inherit}
+#details textarea{min-height:80px;resize:vertical}
+#details details p{white-space:pre-wrap}#details summary{cursor:pointer;color:var(--fg)}
+#list{min-height:130px}footer{flex-shrink:0}#sort{max-width:100px}
