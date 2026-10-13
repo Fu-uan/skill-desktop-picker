@@ -1,5 +1,11 @@
 # Validation
 
+Installation workflow update:
+
+- 18 unit tests cover existing behavior plus default/custom target selection, local full-folder installation, source preservation, installed metadata/discovery checks, and refusal to overwrite.
+- Electron UI check uses fixture data and the real renderer. It verifies separate search/source/install views, automatic single-skill preview, default destination selection, success feedback, and returning to the installed skill. Screenshots were inspected.
+- Runtime loading inside external agents is still unverified. The installation receipt records checks at installation time, not ongoing runtime compatibility.
+
 GitHub import update:
 
 - 15 unit tests passed, including URL validation, Windows path restrictions, complete-file import, no-overwrite behavior and symlink rejection.

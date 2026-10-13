@@ -36,7 +36,7 @@ npm run dist
 ## Usage
 
 1. Open the picker. Default local agent directories are scanned.
-2. Add project or custom folders through **技能来源**. Choose **共享技能库** unless the folder is actually an agent's configured installation directory.
+2. Use **添加 Skill** to install from a public GitHub link or an existing local Skill folder. **管理来源** opens a separate page for scanning skills already installed in other folders.
 3. Select the destination agent, search and select skills.
 4. Click **复制指令**, then paste it into the AI conversation and send it yourself. `Ctrl+Alt+K` opens the picker from another window.
 
@@ -46,13 +46,15 @@ For Codex, the copied text uses the `$skill-name` form, for example `请使用 $
 
 The list now displays **Agent compatibility** separately from directory discovery. Target-specific filters spell out the chosen agent, e.g. **支持 Codex**. Compatibility starts unknown; explicit manual marks record their basis and become unknown again when the skill instructions change. Directory presence and copy counts never establish compatibility. Use the skill details to maintain per-agent support labels. DeepSeek Harness is a selectable target with generic natural-language drafts, not a verified native integration.
 
-## Import from GitHub
+## Install a Skill
 
-Drag a public `https://github.com/owner/repo` link, a `/tree/ref/skill-directory` link or a `/blob/ref/path/SKILL.md` link onto the desktop picker, or use **链接导入**. Parse the link, choose a skill, inspect its description and file list, select a parent directory and destination agent, then click **确认导入**. The app downloads the whole skill folder at the previewed commit and adds it to its catalog. It never runs downloaded scripts or replaces an existing skill folder.
+Open **添加 Skill**, paste a public GitHub repository, skill directory or SKILL.md link, and click **读取链接**. A single skill is previewed automatically; repositories with several skills let you choose one. Alternatively choose **选择本地 Skill 文件夹** for a downloaded folder directly containing SKILL.md. Select the target Agent and click **安装到 …**. The app downloads or copies the full skill folder, reads files back to verify them, checks metadata, and rescans the installed directory. It does not execute scripts or replace an existing same-name folder.
 
-Choose **共享技能库** to save only to your library. For agent installation, choose that agent's actual configured skills directory as the parent; the picker does not change the agent's configuration or guarantee hot reload. Compatibility remains independent from import location.
+Built-in destinations are the current user's .codex/skills, .claude/skills, HERMES_HOME/skills (or .hermes/skills), and .openclaw/skills. Missing folders are created when installation is confirmed. **高级设置 · 安装目录** lets you override and remember a destination for each Agent. DeepSeek Harness and other custom agents require this one-time configuration. **共享技能库** saves under the picker's app-data folder.
 
-Only public GitHub repositories are supported. Private repositories, ZIP import, branch names containing `/`, symlinks/submodules, huge/truncated trees, and packages over 200 files / 20 MB (3 MB per file) are not supported. Unauthenticated GitHub API limits apply; errors are shown in the import panel. No GitHub credentials are read by this importer. Existing downloaded skills can still be indexed using **技能来源 → 添加目录**.
+The completion page shows file checks and the installation location. The catalog retains a **本应用已安装** receipt. These checks establish that the files were installed and can be scanned; they do not establish that a running Agent session loaded the skill or that external dependencies are ready. Reopen the target Agent session and invoke the skill to confirm runtime availability.
+
+Only public GitHub repositories are supported. Private repositories, ZIP import, branch names containing `/`, symlinks/submodules, huge/truncated trees, and packages over 200 files / 20 MB (3 MB per file) are not supported. Unauthenticated GitHub API limits apply; errors are shown on the installation page. No GitHub credentials are read by this importer. Already-installed skills can be indexed through **管理来源 → 添加扫描目录**.
 
 “此 Agent 已发现 · 待验证” means a `SKILL.md` was found under a source associated with that agent. It does **not** prove that the current agent session loaded it, dependencies are installed, permissions are granted, or its instructions are compatible. Duplicate physical directories are deduplicated while preserving agent associations. Equal names from different folders remain separate.
 

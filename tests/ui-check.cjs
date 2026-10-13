@@ -1,0 +1,37 @@
+const {app,BrowserWindow}=require('electron');
+const path=require('node:path');
+const fs=require('node:fs/promises');
+const os=require('node:os');
+const assert=require('node:assert/strict');
+app.disableHardwareAcceleration();
+app.whenReady().then(async()=>{
+  const out=path.join(os.tmpdir(),'skill-picker-ui-check');
+  const win=new BrowserWindow({width:470,height:740,frame:false,show:false,webPreferences:{preload:path.join(__dirname,'ui-preload.cjs'),contextIsolation:true,sandbox:true,offscreen:true}});
+  const errors=[];
+  win.webContents.on('console-message',(_event,level,message)=>{if(level>=2)errors.push(message);});
+  const run=async code=>{try{return await win.webContents.executeJavaScript(code);}catch(error){throw new Error(code+' :: '+error.message+' :: '+errors.join(' | '));}};
+  const capture=async name=>{await new Promise(resolve=>setTimeout(resolve,150));await fs.writeFile(path.join(out,name+'.png'),(await win.webContents.capturePage()).toPNG());};
+  const wait=async code=>{for(let i=0;i<100;i++){if(await run(code))return;await new Promise(resolve=>setTimeout(resolve,50));}throw new Error('UI timed out: '+code);};
+  try{
+    await fs.mkdir(out,{recursive:true});
+    await win.loadFile(path.join(__dirname,'../src/index.html'));
+    await wait("document.querySelectorAll('#list .row').length===1");
+    await run("document.getElementById('sourcesButton').click()");
+    assert.equal(await run("document.getElementById('search-view').hidden && !document.getElementById('sources').hidden"),true);
+    await capture('sources');
+    await run("document.getElementById('closeSources').click();document.getElementById('open-import').click()");
+    await wait("document.querySelector('#import-panel input').disabled===false");
+    assert.equal(await run("document.getElementById('search-view').hidden && document.getElementById('sources').hidden && !document.getElementById('import-panel').hidden"),true);
+    await capture('install');
+    await run("document.querySelector('#import-panel input').value='https://github.com/example/skill';Array.from(document.querySelectorAll('#import-panel button')).find(b=>b.textContent==='读取链接').click()");
+    await wait("Array.from(document.querySelectorAll('#import-panel button')).some(b=>b.textContent==='安装到 Codex'&&!b.disabled)");
+    await run("Array.from(document.querySelectorAll('#import-panel button')).find(b=>b.textContent==='安装到 Codex').click()");
+    await wait("document.querySelector('.install-result').hidden===false");
+    assert.match(await run("document.querySelector('.install-result').textContent"),/安装完成/);
+    await capture('result');
+    await run("Array.from(document.querySelectorAll('.install-result button')).find(b=>b.textContent==='在技能列表中查看').click()");
+    assert.equal(await run("!document.getElementById('search-view').hidden && document.getElementById('import-panel').hidden && document.querySelector('#list .installed')!==null"),true);
+    const result={passed:true,checks:['isolated sources','isolated installer','single-skill auto-preview','default destination','install result','installed badge'],screenshots:out};
+    await fs.writeFile(path.join(out,'result.json'),JSON.stringify(result));console.log(JSON.stringify(result));app.quit();
+  }catch(error){await fs.mkdir(out,{recursive:true});await fs.writeFile(path.join(out,'result.json'),JSON.stringify({passed:false,error:error.message}));console.error(error);app.exit(1);}
+});

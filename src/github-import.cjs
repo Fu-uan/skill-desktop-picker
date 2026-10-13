@@ -64,13 +64,14 @@ function createImporter(fetcher=fetch){
  async function install(token,directory){
   const plan=planFor(token),selected=plan.selected;if(!selected)throw new Error('请先选择并预览技能');
   const base=await fs.realpath(directory),destination=path.join(base,selected.metadata.name);
-  try{await fs.lstat(destination);throw new Error('同名目录已存在，未覆盖。请换一个保存目录。');}catch(e){if(e.code!=='ENOENT')throw e;}
+  try{await fs.lstat(destination);throw new Error('同名目录已存在，未重复安装。请返回技能列表查找，或在管理来源中检查扫描目录。');}catch(e){if(e.code!=='ENOENT')throw e;}
   const staging=await fs.mkdtemp(path.join(base,'.skill-import-'));
   try{
    for(const file of selected.files){const data=await bytesFor(plan,file);const target=path.join(staging,...file.relative.split('/'));await fs.mkdir(path.dirname(target),{recursive:true});await fs.writeFile(target,data,{flag:'wx'});}
    // Claim the final name without replacing a pre-existing path, then move files inside it.
    await fs.mkdir(destination);
    try{for(const name of await fs.readdir(staging))await fs.rename(path.join(staging,name),path.join(destination,name));}catch(e){throw new Error('文件下载完成，但移动未完成。请检查新建目录：'+destination+'；'+e.message);}
+   for(const file of selected.files){const written=await fs.readFile(path.join(destination,...file.relative.split('/')));if(blobHash(written)!==file.sha)throw new Error('安装后的文件校验失败：'+file.relative);}
    plans.delete(token);return{directory:destination,name:selected.metadata.name,files:selected.files.length,commit:plan.commit};
   }finally{await fs.rm(staging,{recursive:true,force:true});}
  }
