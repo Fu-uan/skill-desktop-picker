@@ -7,6 +7,7 @@ const { promisify } = require('node:util');
 const exec = promisify(execFile);
 const { discover, invocation } = require('./catalog.cjs');
 const { displayFor, fingerprint } = require('./display.cjs');
+const { setLockedWindowSize } = require('./window-size.cjs');
 let win, settings, catalog = [], target = null, busy = false, panelExpanded = true;
 const home = os.homedir();
 const defaultSources = () => [
@@ -22,7 +23,7 @@ async function bridge(action,handle=0){
   return action==='foreground'?JSON.parse(stdout.trim()):true;
 }
 async function capture(){if(busy)return;busy=true;try{const t=await bridge('foreground');if(t.pid!==process.pid&&t.title&&!t.title.includes('Skill Desktop Picker')){target=t;win?.webContents.send('target',target);}}catch{}finally{busy=false;}}
-function resize(expanded){panelExpanded=expanded;const scale=(settings.zoom||100)/100;const height=expanded?740:76; const work=screen.getDisplayMatching(win.getBounds()).workArea; win.setSize(Math.min(Math.round(470*scale),work.width-24),Math.min(Math.round(height*scale),work.height-24));const b=win.getBounds();win.setPosition(Math.max(work.x,Math.min(b.x,work.x+work.width-b.width)),Math.max(work.y,Math.min(b.y,work.y+work.height-b.height)));}
+function resize(expanded){panelExpanded=expanded;const scale=(settings.zoom||100)/100;const height=expanded?740:76; const work=screen.getDisplayMatching(win.getBounds()).workArea; setLockedWindowSize(win,Math.min(Math.round(470*scale),work.width-24),Math.min(Math.round(height*scale),work.height-24));const b=win.getBounds();win.setPosition(Math.max(work.x,Math.min(b.x,work.x+work.width-b.width)),Math.max(work.y,Math.min(b.y,work.y+work.height-b.height)));}
 function handle(name,fn){ipcMain.handle(name,async(event,...args)=>{if(event.sender!==win.webContents)throw new Error('Invalid sender');return fn(...args);});}
 app.whenReady().then(async()=>{
   try{settings=JSON.parse(await fs.readFile(storePath(),'utf8'));}catch{settings={sources:defaultSources(),theme:'graphite',favorites:[],agent:'codex'};}

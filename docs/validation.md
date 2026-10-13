@@ -1,5 +1,7 @@
 # Validation
 
+Window collapse fix: Windows ignored setSize on a non-resizable frameless window (requested 76 DIP, observed 741 DIP). Temporarily enabling resizing for the synchronous size change reduced the native bounds to 77 DIP (DPI rounding). Native regression check passed 20 transitions across 90/100/110/125/150% UI scales and confirmed the resize lock is restored. Run using Electron with tests/window-bounds.cjs. Existing 7 unit checks also passed.
+
 2026-10-13 initial development:
 
 - Node syntax checks: passed for main, renderer and catalog.
