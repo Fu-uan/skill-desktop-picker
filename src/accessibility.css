@@ -71,3 +71,4 @@ main{overflow:hidden}
 .install-result{border-color:var(--accent)}
 .install-result>p{margin:10px 0!important;white-space:pre-line}
 .install-result b{font-size:calc(var(--font-size) + 1px)}
+.import-progress{flex-shrink:0}.import-progress:has(p:empty):has(span:empty){display:none}.import-progress span{font-size:calc(var(--font-size) - 1px);color:var(--muted)}.import-progress button{margin-left:8px;border:1px solid var(--line)}.import-progress button[hidden]{display:none}

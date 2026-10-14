@@ -62,7 +62,7 @@ This release does not synchronize updates across agents, read other apps' conver
 
 ## Security and privacy
 
-GitHub previews are cached for ten minutes and file contents are reused during installation. When the public API reports a rate limit, the importer automatically tries a read-only Git download of the same repository/version. This fallback requires Git on PATH and never checks out or executes the skill. Ordinary permission errors are reported separately. Temporary downloads are removed after installation, when changing previews, or on normal app exit.
+The desktop importer downloads the repository snapshot directly from GitHub's official codeload service, avoiding API rate limits and Git subprocess retries. It shows download stages, byte counts and elapsed time, with cancellation and a 20-second download deadline. Previews are cached for ten minutes and files are reused during installation. Archives are read in memory with size limits, and their commit identifier pins the previewed version. No Git installation is needed for this flow.
 
 Skills are parsed as text and never executed during discovery or import. The renderer has no Node access; a narrow isolated preload exposes local actions. No telemetry or accounts are used. Explicit GitHub import sends the repository/path to GitHub's public API; local skills and conversations are not uploaded. No personal skill contents are shipped in this repository.
 

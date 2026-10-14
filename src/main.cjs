@@ -7,6 +7,8 @@ const { displayFor, fingerprint } = require('./display.cjs');
 const { setLockedWindowSize } = require('./window-size.cjs');
 const { AGENTS, compatibilityFor, markCompatibility } = require('./compatibility.cjs');
 const {createImporter}=require('./github-import.cjs');
+const {archiveSnapshot}=require('./github-archive.cjs');
+let previewController=null;
 const {destinationFor,verifyInstalled,createLocalImporter,installOrIndex}=require('./installation.cjs');
 let importer,localImporter,importBusy=false;
 let win, settings, catalog = [], panelExpanded = true;
@@ -38,7 +40,8 @@ async function installSkill(token,agent,local){
 function resize(expanded){panelExpanded=expanded;const scale=(settings.zoom||100)/100;const height=expanded?740:76; const work=screen.getDisplayMatching(win.getBounds()).workArea; setLockedWindowSize(win,Math.min(Math.round(470*scale),work.width-24),Math.min(Math.round(height*scale),work.height-24));const b=win.getBounds();win.setPosition(Math.max(work.x,Math.min(b.x,work.x+work.width-b.width)),Math.max(work.y,Math.min(b.y,work.y+work.height-b.height)));}
 function handle(name,fn){ipcMain.handle(name,async(event,...args)=>{if(event.sender!==win.webContents)throw new Error('Invalid sender');return fn(...args);});}
 app.whenReady().then(async()=>{
-  importer=createImporter((url,options)=>net.fetch(url,options));
+  const download=(url,options)=>net.fetch(url,options);
+  importer=createImporter(download,source=>archiveSnapshot(source,download,{signal:previewController?.signal,onProgress:text=>{if(win&&!win.isDestroyed())win.webContents.send('import-progress',text);}}),{archiveFirst:true});
   localImporter=createLocalImporter();
   try{settings=JSON.parse(await fs.readFile(storePath(),'utf8'));}catch{settings={sources:defaultSources(),theme:'graphite',favorites:[],agent:'codex'};}
   win=new BrowserWindow({width:430,height:650,frame:false,transparent:true,alwaysOnTop:true,resizable:false,show:false,title:'Skill Desktop Picker',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
@@ -57,7 +60,8 @@ app.whenReady().then(async()=>{
   handle('pin',value=>win.setAlwaysOnTop(!!value));
   handle('minimize',()=>win.minimize());handle('quit',()=>app.quit());
   handle('open-skill',id=>{const s=catalog.find(s=>s.id===id);if(s)shell.showItemInFolder(s.file);});
-  handle('import-preview',link=>{if(importBusy)throw new Error('正在导入，请稍候');return importer.preview(link);});
+  handle('import-preview',async link=>{if(importBusy||previewController)throw new Error('正在导入，请稍候');previewController=new AbortController();try{return await importer.preview(link);}finally{previewController=null;}});
+  handle('import-cancel',()=>previewController?.abort());
   handle('import-inspect',(token,skillPath)=>{if(importBusy)throw new Error('正在导入，请稍候');return importer.inspect(token,skillPath);});
   handle('import-target',agent=>installTarget(agent));
   handle('import-destination',async agent=>{if(importBusy)throw new Error('正在安装，请稍候');const current=installTarget(agent);const result=await dialog.showOpenDialog(win,{properties:['openDirectory','createDirectory'],defaultPath:current.directory||home,title:'设置此 Agent 的技能安装目录'});if(!result.canceled){settings.installDirectories ||= {};settings.installDirectories[agent]=result.filePaths[0];await save();}return installTarget(agent);});

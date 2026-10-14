@@ -1,5 +1,7 @@
 # Validation
 
+Direct archive update: 22 tests passed, including API-free archive preview, caching, cancellation and download limits. A live Electron net.fetch check on the reported public repository discovered two skills in 1,386 ms; the repeated preview took 0 ms from cache. This is one observed run, not a guaranteed network latency.
+
 Rate-limit handling: regression tests verify fallback on HTTP 429, preview/blob reuse, snapshot cleanup, and no fallback for an unrelated HTTP 403. Public Git transport is tested separately from simulated API responses.
 
 Installation workflow update:

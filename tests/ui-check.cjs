@@ -31,7 +31,12 @@ app.whenReady().then(async()=>{
     await capture('result');
     await run("Array.from(document.querySelectorAll('.install-result button')).find(b=>b.textContent==='在技能列表中查看').click()");
     assert.equal(await run("!document.getElementById('search-view').hidden && document.getElementById('import-panel').hidden && document.querySelector('#list .installed')!==null"),true);
-    const result={passed:true,checks:['isolated sources','isolated installer','single-skill auto-preview','default destination','install result','installed badge'],screenshots:out};
+    await run("document.getElementById('open-import').click()");
+    await wait("document.querySelector('#import-panel input').disabled===false");
+    await run("Array.from(document.querySelectorAll('#import-panel button')).find(b=>b.textContent==='读取链接').click();Array.from(document.querySelectorAll('#import-panel button')).find(b=>b.textContent==='取消下载').click()");
+    await wait("document.querySelector('#import-panel input').disabled===false");
+    assert.match(await run("document.querySelector('.import-progress').textContent"),/已取消下载/);
+    const result={passed:true,checks:['isolated sources','isolated installer','single-skill auto-preview','default destination','install result','installed badge','cancel restores controls'],screenshots:out};
     await fs.writeFile(path.join(out,'result.json'),JSON.stringify(result));console.log(JSON.stringify(result));app.quit();
   }catch(error){await fs.mkdir(out,{recursive:true});await fs.writeFile(path.join(out,'result.json'),JSON.stringify({passed:false,error:error.message}));console.error(error);app.exit(1);}
 });

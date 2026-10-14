@@ -8,6 +8,15 @@ importHeader.append(closeImport,importTitle);
 const importIntro=document.createElement('p');importIntro.textContent='选好来源和目标，程序会自动安装并检查结果。';
 const importInput=document.createElement('input');importInput.type='url';importInput.placeholder='粘贴 GitHub 仓库或 Skill 链接';importInput.setAttribute('aria-label','GitHub 技能链接');
 const importStatus=document.createElement('p');importStatus.setAttribute('role','status');
+const progressClock=document.createElement('span');
+const cancelImport=button('取消下载',async()=>{cancelImport.disabled=true;importStatus.textContent='正在取消…';await api.importCancel();});
+cancelImport.hidden=true;
+const progressBar=document.createElement('div');progressBar.className='import-progress';progressBar.append(importStatus,progressClock,cancelImport);
+let previewWaiting=false,previewTimer;
+function beginPreview(){previewWaiting=true;cancelImport.hidden=false;cancelImport.disabled=false;const started=Date.now();progressClock.textContent='已用 0 秒';previewTimer=setInterval(()=>{progressClock.textContent='已用 '+Math.floor((Date.now()-started)/1000)+' 秒 · 下载最多等待 20 秒';},1000);}
+function endPreview(){previewWaiting=false;clearInterval(previewTimer);progressClock.textContent='';cancelImport.hidden=true;}
+function importError(error){return error.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/,'');}
+api.onImportProgress?.(text=>{if(previewWaiting)importStatus.textContent=text;});
 const candidateList=document.createElement('div'),skillPreview=document.createElement('div');
 candidateList.className='import-candidates';skillPreview.className='import-preview';
 const importAgent=document.createElement('select');importAgent.setAttribute('aria-label','安装到哪个 Agent');
@@ -52,27 +61,27 @@ async function inspectSkill(skill,choice){
 }
 const parseImport=button('读取链接',async()=>{
   if(uiImportBusy)return;
-  clearPreview();importLocal=false;controlsBusy(true);importStatus.textContent='正在查找 Skill…';
+  clearPreview();importLocal=false;controlsBusy(true);beginPreview();importStatus.textContent='正在连接 GitHub 官方下载…';
   try{
     const preview=await api.importPreview(importInput.value);importToken=preview.token;
     for(const skill of preview.skills){
-      const choice=button(skill.label,async()=>{controlsBusy(true);try{await inspectSkill(skill,choice);}catch(e){importStatus.textContent=e.message;}finally{controlsBusy(false);}});
+      const choice=button(skill.label,async()=>{controlsBusy(true);try{await inspectSkill(skill,choice);}catch(e){importStatus.textContent=importError(e);}finally{controlsBusy(false);}});
       candidateList.append(choice);
     }
     if(preview.skills.length===1){candidateList.hidden=true;await inspectSkill(preview.skills[0],candidateList.firstElementChild);}
     else{candidateList.hidden=false;importStatus.textContent='找到 '+preview.skills.length+' 个 Skill，请选择要安装的一个。';}
-  }catch(e){importStatus.textContent=e.message;}finally{controlsBusy(false);}
+  }catch(e){importStatus.textContent=importError(e);}finally{endPreview();controlsBusy(false);}
 });
 const localImport=button('选择本地 Skill 文件夹',async()=>{
   if(uiImportBusy)return;
   controlsBusy(true);
   try{const preview=await api.importLocal();if(preview){clearPreview();importLocal=true;importToken=preview.token;showPreview(preview);importStatus.textContent='已检查本地技能，点击安装即可自动复制到目标目录。';}}
-  catch(e){clearPreview();importStatus.textContent=e.message;}finally{controlsBusy(false);}
+  catch(e){clearPreview();importStatus.textContent=importError(e);}finally{controlsBusy(false);}
 });
 const chooseImportFolder=button('更改安装目录',async()=>{
   controlsBusy(true);
   try{await api.importDestination(importAgent.value);await refreshDestination();}
-  catch(e){importStatus.textContent=e.message;}finally{controlsBusy(false);}
+  catch(e){importStatus.textContent=importError(e);}finally{controlsBusy(false);}
 });
 advanced.append(chooseImportFolder);
 const confirmImport=button('安装',async()=>{
@@ -90,9 +99,9 @@ const confirmImport=button('安装',async()=>{
     const another=button('继续添加',()=>{clearPreview();controlsBusy(false);importInput.value='';importInput.focus();});
     resultPanel.append(title,checks,notice,location,view,another);
     await load();resultPanel.scrollIntoView({block:'nearest'});
-  }catch(e){importStatus.textContent=e.message;}finally{controlsBusy(false);}
+  }catch(e){importStatus.textContent=importError(e);}finally{controlsBusy(false);}
 },'primary');confirmImport.disabled=true;
-importAgent.onchange=async()=>{controlsBusy(true);try{await refreshDestination();}catch(e){importStatus.textContent=e.message;}finally{controlsBusy(false);}};
+importAgent.onchange=async()=>{controlsBusy(true);try{await refreshDestination();}catch(e){importStatus.textContent=importError(e);}finally{controlsBusy(false);}};
 const sourceBlock=document.createElement('div');sourceBlock.className='install-block';
 const sourceLabel=document.createElement('b');sourceLabel.textContent='1 · 选择来源';
 const linkRow=document.createElement('div');linkRow.className='import-link-row';linkRow.append(importInput,parseImport);
@@ -100,10 +109,10 @@ sourceBlock.append(sourceLabel,linkRow,localImport,candidateList,skillPreview);
 const targetBlock=document.createElement('div');targetBlock.className='install-block';
 const installTargetLabel=document.createElement('label');installTargetLabel.textContent='2 · 安装到';installTargetLabel.append(importAgent);
 targetBlock.append(installTargetLabel,destinationNote,advanced,confirmImport);
-importPanel.append(importHeader,importIntro,sourceBlock,targetBlock,importStatus,resultPanel);
+importPanel.append(importHeader,importIntro,progressBar,sourceBlock,targetBlock,resultPanel);
 async function openInstaller(){
   showView('import-panel');
-  if(!uiImportBusy){importAgent.value=settings.agent||'codex';controlsBusy(true);try{await refreshDestination();}catch(e){importStatus.textContent=e.message;}finally{controlsBusy(false);}}
+  if(!uiImportBusy){importAgent.value=settings.agent||'codex';controlsBusy(true);try{await refreshDestination();}catch(e){importStatus.textContent=importError(e);}finally{controlsBusy(false);}}
   importInput.focus();
 }
 const openImport=button('+ 添加 Skill',openInstaller,'add-skill');openImport.id='open-import';$('sourcesButton').before(openImport);

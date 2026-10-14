@@ -21,7 +21,7 @@ function safeRelative(value){
  return value;
 }
 function blobHash(bytes){return crypto.createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');}
-function createImporter(fetcher=fetch,fallback=require('./github-git.cjs').gitSnapshot){
+function createImporter(fetcher=fetch,fallback=require('./github-git.cjs').gitSnapshot,options={}){
  const plans=new Map(),cache=new Map();let limitedUntil=0;
  async function dispose(){for(const plan of plans.values())await plan.snapshot?.dispose();plans.clear();}
  async function request(route){
@@ -45,11 +45,12 @@ function createImporter(fetcher=fetch,fallback=require('./github-git.cjs').gitSn
   const source=parseLink(link),base=`/repos/${encodeURIComponent(source.owner)}/${encodeURIComponent(source.repo)}`;
   const key=JSON.stringify(source);for(const plan of plans.values())if(plan.key===key&&Date.now()-plan.created<600000)return plan.result;
   await dispose();let commit,tree,snapshot;
-  try{const ref=source.ref||(await request(base)).default_branch;commit=await request(`${base}/commits/${encodeURIComponent(ref)}`);tree=await request(`${base}/git/trees/${commit.commit.tree.sha}?recursive=1`);}catch(error){if(error.code!=='RATE_LIMIT')throw error;snapshot=await fallback(source);commit={sha:snapshot.commit};tree={tree:snapshot.tree,truncated:false};}
+  if(options.archiveFirst){snapshot=await fallback(source);commit={sha:snapshot.commit};tree={tree:snapshot.tree,truncated:false};}
+  else try{const ref=source.ref||(await request(base)).default_branch;commit=await request(`${base}/commits/${encodeURIComponent(ref)}`);tree=await request(`${base}/git/trees/${commit.commit.tree.sha}?recursive=1`);}catch(error){if(error.code!=='RATE_LIMIT')throw error;snapshot=await fallback(source);commit={sha:snapshot.commit};tree={tree:snapshot.tree,truncated:false};}
   if(tree.truncated)throw new Error('仓库过大，无法完整预览，请下载技能后使用本地目录导入');
   const skillFiles=tree.tree.filter(f=>f.type==='blob'&&(f.path==='SKILL.md'||f.path.endsWith('/SKILL.md'))&&(!source.prefix||f.path===source.prefix+'/SKILL.md'||f.path.startsWith(source.prefix+'/')));
   if(!skillFiles.length||skillFiles.length>300){await snapshot?.dispose();throw new Error(!skillFiles.length?'该路径下没有找到 SKILL.md':'技能数量过多，请使用具体技能目录链接');}
-  const token=crypto.randomUUID();const result={token,repository:source.owner+'/'+source.repo,commit:commit.sha,transport:snapshot?'git':'api',skills:skillFiles.map(f=>({path:f.path,label:f.path==='SKILL.md'?source.repo:f.path.slice(0,-9)}))};
+  const token=crypto.randomUUID();const result={token,repository:source.owner+'/'+source.repo,commit:commit.sha,transport:options.archiveFirst?'archive':snapshot?'git':'api',skills:skillFiles.map(f=>({path:f.path,label:f.path==='SKILL.md'?source.repo:f.path.slice(0,-9)}))};
   plans.set(token,{key,result,base,tree:tree.tree,skillFiles,commit:commit.sha,source,snapshot,bytes:new Map(),byteCount:0,created:Date.now()});return result;
  }
  function planFor(token){const plan=plans.get(token);if(!plan||Date.now()-plan.created>30*60*1000)throw new Error('预览已过期，请重新解析链接');return plan;}
