@@ -10,3 +10,19 @@ function fixture(mode='100644'){
 }
 test('previews and installs complete pinned files without overwriting existing skills',async t=>{const dir=await fs.mkdtemp(path.join(os.tmpdir(),'picker-import-test-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const importer=fixture();const p=await importer.preview('https://github.com/a/b');const selected=await importer.inspect(p.token,p.skills[0].path);assert.equal(selected.name,'demo');assert.equal(selected.files.length,2);const result=await importer.install(p.token,dir);assert.equal(await fs.readFile(path.join(result.directory,'scripts/run.py'),'utf8'),'print("never executed")');const p2=await importer.preview('https://github.com/a/b');await importer.inspect(p2.token,p2.skills[0].path);await assert.rejects(importer.install(p2.token,dir),/同名目录/);});
 test('rejects symlink packages before installation',async()=>{const importer=fixture('120000');const p=await importer.preview('https://github.com/a/b');await assert.rejects(importer.inspect(p.token,p.skills[0].path),/符号链接/);});
+test('rate limits switch to Git snapshot, reuse previews and cache blobs',async t=>{
+ const data=Buffer.from('---\nname: fallback-demo\ndescription: test\n---\nInstructions');
+ let requests=0,downloads=0,reads=0,disposed=0;
+ const importer=createImporter(async()=>{requests++;return{ok:false,status:429,text:async()=>'',headers:{get:()=>null}};},async()=>{downloads++;return{commit:'abc',tree:[{path:'SKILL.md',type:'blob',mode:'100644',size:data.length,sha:blobHash(data)}],read:async()=>{reads++;return data;},dispose:async()=>{disposed++;}};});
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'picker-fallback-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));
+ const first=await importer.preview('https://github.com/a/b');assert.equal(first.transport,'git');
+ assert.equal((await importer.preview('https://github.com/a/b')).token,first.token);
+ await importer.inspect(first.token,'SKILL.md');await importer.inspect(first.token,'SKILL.md');
+ const installed=await importer.install(first.token,dir);
+ assert.equal(await fs.readFile(path.join(installed.directory,'SKILL.md'),'utf8'),data.toString());
+ assert.deepEqual([requests,downloads,reads,disposed],[1,1,1,1]);
+});
+test('non-rate-limit forbidden responses do not invoke fallback',async()=>{
+ let called=false;const importer=createImporter(async()=>({ok:false,status:403,headers:{get:()=>null},text:async()=>'Access forbidden'}),async()=>{called=true;});
+ await assert.rejects(importer.preview('https://github.com/a/b'),/403/);assert.equal(called,false);
+});

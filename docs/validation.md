@@ -1,5 +1,7 @@
 # Validation
 
+Rate-limit handling: regression tests verify fallback on HTTP 429, preview/blob reuse, snapshot cleanup, and no fallback for an unrelated HTTP 403. Public Git transport is tested separately from simulated API responses.
+
 Installation workflow update:
 
 - 18 unit tests cover existing behavior plus default/custom target selection, local full-folder installation, source preservation, installed metadata/discovery checks, and refusal to overwrite.

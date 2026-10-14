@@ -21,32 +21,36 @@ function safeRelative(value){
  return value;
 }
 function blobHash(bytes){return crypto.createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');}
-function createImporter(fetcher=fetch){
- const plans=new Map();
+function createImporter(fetcher=fetch,fallback=require('./github-git.cjs').gitSnapshot){
+ const plans=new Map(),cache=new Map();let limitedUntil=0;
+ async function dispose(){for(const plan of plans.values())await plan.snapshot?.dispose();plans.clear();}
  async function request(route){
+  const cached=cache.get(route);if(cached&&Date.now()-cached.time<600000)return cached.data;
+  if(Date.now()<limitedUntil){const error=new Error('GitHub 接口限流');error.code='RATE_LIMIT';throw error;}
   const response=await fetcher('https://api.github.com'+route,{headers:{Accept:'application/vnd.github+json','User-Agent':'skill-desktop-picker'},redirect:'error',signal:AbortSignal.timeout(30000)});
-  if(!response.ok)throw new Error(response.status===404?'仓库、分支或路径不存在，或该仓库为私有仓库':response.status===403||response.status===429?'GitHub 请求限流，请稍后重试':`GitHub 请求失败（${response.status}）`);
+  if(!response.ok){const body=await response.text();const limited=response.status===429||response.status===403&&(response.headers?.get('x-ratelimit-remaining')==='0'||/rate limit|secondary rate/i.test(body));const error=new Error(response.status===404?'仓库、分支或路径不存在，或该仓库为私有仓库':limited?'GitHub 接口限流':'GitHub 请求被拒绝（'+response.status+'）');if(limited){error.code='RATE_LIMIT';const reset=Number(response.headers?.get('x-ratelimit-reset'))*1000;limitedUntil=reset>Date.now()?reset:Date.now()+60000;}throw error;}
   const length=Number(response.headers?.get('content-length')||0);if(length>32*1024*1024)throw new Error('GitHub 响应过大');
-  const text=await response.text();if(Buffer.byteLength(text)>32*1024*1024)throw new Error('GitHub 响应过大');return JSON.parse(text);
+  const text=await response.text();if(Buffer.byteLength(text)>32*1024*1024)throw new Error('GitHub 响应过大');const data=JSON.parse(text);if(!route.includes('/git/blobs/')){if(cache.size>=32)cache.delete(cache.keys().next().value);cache.set(route,{time:Date.now(),data});}return data;
  }
  async function bytesFor(plan,file){
-  const blob=await request(`${plan.base}/git/blobs/${file.sha}`);
-  if(blob.encoding!=='base64')throw new Error('不支持的 GitHub 文件编码');
-  const bytes=Buffer.from(blob.content,'base64');
+  if(plan.bytes.has(file.sha))return plan.bytes.get(file.sha);
+  let bytes;
+  if(plan.snapshot)bytes=await plan.snapshot.read(file);
+  else try{const blob=await request(`${plan.base}/git/blobs/${file.sha}`);if(blob.encoding!=='base64')throw new Error('不支持的 GitHub 文件编码');bytes=Buffer.from(blob.content,'base64');}catch(error){if(error.code!=='RATE_LIMIT')throw error;plan.snapshot=await fallback({...plan.source,ref:plan.commit});bytes=await plan.snapshot.read(file);}
   if(bytes.length!==file.size||blobHash(bytes)!==file.sha)throw new Error('文件内容与预览版本不一致');
+  if(plan.byteCount+bytes.length<=MAX_BYTES){plan.bytes.set(file.sha,bytes);plan.byteCount+=bytes.length;}
   return bytes;
  }
  async function preview(link){
   const source=parseLink(link),base=`/repos/${encodeURIComponent(source.owner)}/${encodeURIComponent(source.repo)}`;
-  const ref=source.ref||(await request(base)).default_branch;
-  const commit=await request(`${base}/commits/${encodeURIComponent(ref)}`);
-  const tree=await request(`${base}/git/trees/${commit.commit.tree.sha}?recursive=1`);
+  const key=JSON.stringify(source);for(const plan of plans.values())if(plan.key===key&&Date.now()-plan.created<600000)return plan.result;
+  await dispose();let commit,tree,snapshot;
+  try{const ref=source.ref||(await request(base)).default_branch;commit=await request(`${base}/commits/${encodeURIComponent(ref)}`);tree=await request(`${base}/git/trees/${commit.commit.tree.sha}?recursive=1`);}catch(error){if(error.code!=='RATE_LIMIT')throw error;snapshot=await fallback(source);commit={sha:snapshot.commit};tree={tree:snapshot.tree,truncated:false};}
   if(tree.truncated)throw new Error('仓库过大，无法完整预览，请下载技能后使用本地目录导入');
   const skillFiles=tree.tree.filter(f=>f.type==='blob'&&(f.path==='SKILL.md'||f.path.endsWith('/SKILL.md'))&&(!source.prefix||f.path===source.prefix+'/SKILL.md'||f.path.startsWith(source.prefix+'/')));
-  if(!skillFiles.length)throw new Error('该路径下没有找到 SKILL.md');
-  if(skillFiles.length>300)throw new Error('技能数量过多，请使用具体技能目录链接');
-  const token=crypto.randomUUID();plans.clear();plans.set(token,{base,tree:tree.tree,skillFiles,commit:commit.sha,source,created:Date.now()});
-  return{token,repository:source.owner+'/'+source.repo,commit:commit.sha,skills:skillFiles.map(f=>({path:f.path,label:f.path==='SKILL.md'?source.repo:f.path.slice(0,-9)}))};
+  if(!skillFiles.length||skillFiles.length>300){await snapshot?.dispose();throw new Error(!skillFiles.length?'该路径下没有找到 SKILL.md':'技能数量过多，请使用具体技能目录链接');}
+  const token=crypto.randomUUID();const result={token,repository:source.owner+'/'+source.repo,commit:commit.sha,transport:snapshot?'git':'api',skills:skillFiles.map(f=>({path:f.path,label:f.path==='SKILL.md'?source.repo:f.path.slice(0,-9)}))};
+  plans.set(token,{key,result,base,tree:tree.tree,skillFiles,commit:commit.sha,source,snapshot,bytes:new Map(),byteCount:0,created:Date.now()});return result;
  }
  function planFor(token){const plan=plans.get(token);if(!plan||Date.now()-plan.created>30*60*1000)throw new Error('预览已过期，请重新解析链接');return plan;}
  async function inspect(token,skillPath){
@@ -72,9 +76,9 @@ function createImporter(fetcher=fetch){
    await fs.mkdir(destination);
    try{for(const name of await fs.readdir(staging))await fs.rename(path.join(staging,name),path.join(destination,name));}catch(e){throw new Error('文件下载完成，但移动未完成。请检查新建目录：'+destination+'；'+e.message);}
    for(const file of selected.files){const written=await fs.readFile(path.join(destination,...file.relative.split('/')));if(blobHash(written)!==file.sha)throw new Error('安装后的文件校验失败：'+file.relative);}
-   plans.delete(token);return{directory:destination,name:selected.metadata.name,files:selected.files.length,commit:plan.commit};
+   await plan.snapshot?.dispose();plans.delete(token);return{directory:destination,name:selected.metadata.name,files:selected.files.length,commit:plan.commit};
   }finally{await fs.rm(staging,{recursive:true,force:true});}
  }
- return{preview,inspect,install};
+ return{preview,inspect,install,dispose};
 }
 module.exports={parseLink,safeRelative,blobHash,createImporter};

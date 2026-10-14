@@ -72,3 +72,5 @@ app.whenReady().then(async()=>{
   globalShortcut.register('Control+Alt+K',()=>{win.show();win.focus();});
 });
 app.on('window-all-closed',()=>app.quit());app.on('will-quit',()=>globalShortcut.unregisterAll());
+let cleaningImports=false;
+app.on('before-quit',event=>{if(cleaningImports||!importer)return;event.preventDefault();cleaningImports=true;importer.dispose().catch(()=>{}).finally(()=>app.quit());});
