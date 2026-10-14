@@ -48,13 +48,19 @@ The list now displays **Agent compatibility** separately from directory discover
 
 ## Install a Skill
 
-Open **添加 Skill**, paste a public GitHub repository, skill directory or SKILL.md link, and click **读取链接**. A single skill is previewed automatically; repositories with several skills let you choose one. Alternatively choose **选择本地 Skill 文件夹** for a downloaded folder directly containing SKILL.md. Select the target Agent and click **安装到 …**. The app downloads or copies the full skill folder, reads files back to verify them, checks metadata, and rescans the installed directory. It does not execute scripts or replace an existing same-name folder.
+Open **添加 Skill**, paste a public GitHub repository, skill directory or SKILL.md link, and click **读取链接**. A single skill is previewed automatically. Multi-skill repositories show a collection with all members selected by default; deselect members for a partial install. Alternatively expand **或：从本地文件夹导入** for a downloaded folder directly containing SKILL.md. Select the target Agent and confirm installation. The app downloads or copies complete skill folders, reads files back to verify them, checks metadata, and rescans the installed directories. It does not execute scripts or replace an existing same-name folder.
+
+### 整套安装与统一调用入口
+
+合集默认勾选 **创建统一调用入口 · 本地生成**。完整安装后会额外创建一个 `仓库名-suite-来源短哈希` 技能，它用相对路径列出所有成员，要求 Agent 检查缺失项、按任务读取相关成员的真实 SKILL.md，不强迫每次运行全部技能。入口不是官方技能，不合并或改写原有技能。点击 **查看统一入口并复制指令** 返回列表，选择入口后仍使用现有 **复制指令** 功能。
+
+只有选择完整合集且所有成员安装成功或已存在并通过扫描检查时，才创建入口。某项失败不会回滚其他成功项，结果逐项报告；失败后可以重新读取链接再安装，已存在文件不会被覆盖。已有入口内容完全相同时复用，否则报告冲突且不覆盖。本地已有技能可能不同于远端版本。入口只是调用指引，不保证目标 Agent 自动执行或具备运行依赖；需要重新打开目标 Agent 会话。本次不提供整包升级或卸载。
 
 Built-in destinations are the current user's .codex/skills, .claude/skills, HERMES_HOME/skills (or .hermes/skills), and .openclaw/skills. Missing folders are created when installation is confirmed. **高级设置 · 安装目录** lets you override and remember a destination for each Agent. DeepSeek Harness and other custom agents require this one-time configuration. **共享技能库** saves under the picker's app-data folder.
 
 The completion page shows file checks and the installation location. The catalog retains a **本应用已安装** receipt. These checks establish that the files were installed and can be scanned; they do not establish that a running Agent session loaded the skill or that external dependencies are ready. Reopen the target Agent session and invoke the skill to confirm runtime availability.
 
-Only public GitHub repositories are supported. Private repositories, ZIP import, branch names containing `/`, symlinks/submodules, huge/truncated trees, and packages over 200 files / 20 MB (3 MB per file) are not supported. Unauthenticated GitHub API limits apply; errors are shown on the installation page. No GitHub credentials are read by this importer. Already-installed skills can be indexed through **管理来源 → 添加扫描目录**.
+Only public GitHub repositories are supported. Private repositories, local ZIP import, branch names containing `/`, symlinks/submodules, huge/truncated trees, and individual skills over 200 files / 20 MB (3 MB per file) are not supported. Desktop imports use official codeload archives rather than the rate-limited API. No GitHub credentials are read by this importer. Already-installed skills can be indexed through **管理来源 → 添加扫描目录**.
 
 “此 Agent 已发现 · 待验证” means a `SKILL.md` was found under a source associated with that agent. It does **not** prove that the current agent session loaded it, dependencies are installed, permissions are granted, or its instructions are compatible. Duplicate physical directories are deduplicated while preserving agent associations. Equal names from different folders remain separate.
 
@@ -64,7 +70,7 @@ This release does not synchronize updates across agents, read other apps' conver
 
 The desktop importer downloads the repository snapshot directly from GitHub's official codeload service, avoiding API rate limits and Git subprocess retries. It shows download stages, byte counts and elapsed time, with cancellation and a 20-second download deadline. Previews are cached for ten minutes and files are reused during installation. Archives are read in memory with size limits, and their commit identifier pins the previewed version. No Git installation is needed for this flow.
 
-Skills are parsed as text and never executed during discovery or import. The renderer has no Node access; a narrow isolated preload exposes local actions. No telemetry or accounts are used. Explicit GitHub import sends the repository/path to GitHub's public API; local skills and conversations are not uploaded. No personal skill contents are shipped in this repository.
+Skills are parsed as text and never executed during discovery or import. The renderer has no Node access; a narrow isolated preload exposes local actions. No telemetry or accounts are used. Explicit GitHub import sends the repository/ref to GitHub's download service; local skills and conversations are not uploaded. No personal skill contents are shipped in this repository.
 
 ## Project structure
 

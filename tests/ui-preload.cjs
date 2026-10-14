@@ -5,9 +5,10 @@ contextBridge.exposeInMainWorld('picker',{
   load:async()=>({settings:{theme:'graphite',agent:'codex',favorites:[],sources:[{agent:'codex',path:'C:/Example/skills'},{agent:'claude',path:'C:/Example/claude/skills'}]},items:[{...sample,installation:installed?{agent:'codex',files:2}:undefined}],errors:[],sourceReports:[{exists:true,count:1},{exists:false,count:0}]}),
   ready:async()=>{},settings:async patch=>({theme:'graphite',agent:'codex',favorites:[],...patch}),
   importTarget:async agent=>({directory:agent==='other'?null:'C:/Example/'+agent+'/skills',custom:false}),
-  importPreview:async()=>{cancelled=false;await new Promise(resolve=>setTimeout(resolve,200));if(cancelled)throw new Error('已取消下载');return{token:'preview',skills:[{path:'SKILL.md',label:'example-skill'}]};},
+  importPreview:async link=>{cancelled=false;await new Promise(resolve=>setTimeout(resolve,200));if(cancelled)throw new Error('已取消下载');return{token:'preview',repository:'example/collection',skills:link.endsWith('/collection')?[{path:'a/SKILL.md',label:'a'},{path:'b/SKILL.md',label:'b'}]:[{path:'SKILL.md',label:'example-skill'}]};},
   importCancel:async()=>{cancelled=true;},onImportProgress:()=>{},
   importInspect:async()=>({name:sample.name,description:sample.description,files:[{path:'SKILL.md'},{path:'scripts/run.js'}]}),
   importInstall:async()=>{installed=true;return{name:sample.name,files:2,directory:'C:/Example/codex/skills/example-skill',notice:'安装文件已校验。请重新打开目标 Agent 会话后调用。'};},
+  importBatch:async(token,agent,paths,createEntry)=>({repository:'example/collection',items:paths.map(p=>({name:p,status:'installed',files:1})),entry:createEntry?{name:'collection-suite',status:'installed'}:null,notice:'请重新打开目标 Agent 会话后调用。'}),
   importDestination:async()=>{},importLocal:async()=>null,expand:async()=>{},pin:async()=>{},minimize:async()=>{},quit:async()=>{},draft:async()=>({usage:{}}),
 });

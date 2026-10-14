@@ -20,6 +20,8 @@ function destinationFor(agent, settings, home, library, env = process.env) {
 }
 
 async function verifyInstalled(directory, name) {
+  try{await fs.lstat(path.join(directory,'.skill-picker-incomplete.json'));throw new Error('此目录上次安装未完成，请先检查并移出残留目录后重试（不会自动删除文件）');}
+  catch(error){if(error.code!=='ENOENT')throw error;}
   const metadata = parseSkill(await fs.readFile(path.join(directory, 'SKILL.md'), 'utf8'));
   if (metadata.name !== name) throw new Error('安装后的技能名称不一致');
   const scan = await discover([{ path: directory, agent: 'library' }]);

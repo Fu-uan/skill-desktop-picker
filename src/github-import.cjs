@@ -62,11 +62,12 @@ function createImporter(fetcher=fetch,fallback=require('./github-git.cjs').gitSn
   let total=0;const seen=new Set();
   const files=entries.map(f=>{if(f.type!=='blob'||!['100644','100755'].includes(f.mode))throw new Error('不导入符号链接或 Git 子模块');const relative=safeRelative(f.path.slice(prefix.length));if(relative.split('/').some(p=>['.git','.env','node_modules'].includes(p.toLowerCase())))throw new Error('技能目录包含不适合导入的隐藏配置或依赖目录');if(seen.has(relative.toLowerCase()))throw new Error('文件名在 Windows 上存在大小写冲突');seen.add(relative.toLowerCase());if(!Number.isSafeInteger(f.size)||f.size<0||f.size>3*1024*1024)throw new Error('单个文件超过 3 MB');total+=f.size;return{...f,relative};});
   if(total>MAX_BYTES)throw new Error('技能包超过 20 MB');
+  if(files.some(f=>f.relative.toLowerCase()==='.skill-picker-incomplete.json'))throw new Error('技能包含安装器保留文件名');
   const metadata=parseSkill((await bytesFor(plan,entry)).toString('utf8'));safeRelative(metadata.name);if(metadata.name.includes('/'))throw new Error('技能名称不能包含路径');
   plan.selected={skillPath,files,metadata,total};
   return{name:metadata.name,description:metadata.description,files:files.map(f=>({path:f.relative,size:f.size})),bytes:total,commit:plan.commit};
  }
- async function install(token,directory){
+ async function install(token,directory,retain=false){
   const plan=planFor(token),selected=plan.selected;if(!selected)throw new Error('请先选择并预览技能');
   const base=await fs.realpath(directory),destination=path.join(base,selected.metadata.name);
   try{await fs.lstat(destination);const error=new Error('同名目录已存在');error.code='SKILL_EXISTS';error.directory=destination;error.skillName=selected.metadata.name;throw error;}catch(e){if(e.code!=='ENOENT')throw e;}
@@ -75,11 +76,44 @@ function createImporter(fetcher=fetch,fallback=require('./github-git.cjs').gitSn
    for(const file of selected.files){const data=await bytesFor(plan,file);const target=path.join(staging,...file.relative.split('/'));await fs.mkdir(path.dirname(target),{recursive:true});await fs.writeFile(target,data,{flag:'wx'});}
    // Claim the final name without replacing a pre-existing path, then move files inside it.
    await fs.mkdir(destination);
+   const pending=path.join(destination,'.skill-picker-incomplete.json');
+   await fs.writeFile(pending,JSON.stringify({commit:plan.commit,name:selected.metadata.name}),{flag:'wx'});
    try{for(const name of await fs.readdir(staging))await fs.rename(path.join(staging,name),path.join(destination,name));}catch(e){throw new Error('文件下载完成，但移动未完成。请检查新建目录：'+destination+'；'+e.message);}
    for(const file of selected.files){const written=await fs.readFile(path.join(destination,...file.relative.split('/')));if(blobHash(written)!==file.sha)throw new Error('安装后的文件校验失败：'+file.relative);}
-   await plan.snapshot?.dispose();plans.delete(token);return{directory:destination,name:selected.metadata.name,files:selected.files.length,commit:plan.commit};
+   await fs.unlink(pending);
+   if(!retain){await plan.snapshot?.dispose();plans.delete(token);}return{directory:destination,name:selected.metadata.name,files:selected.files.length,commit:plan.commit};
   }finally{await fs.rm(staging,{recursive:true,force:true});}
  }
- return{preview,inspect,install,dispose};
+ async function installBatch(token,directory,paths,{createEntry=false,onProgress=()=>{}}={}){
+  const plan=planFor(token);
+  if(!Array.isArray(paths)||!paths.length||paths.length>300||new Set(paths).size!==paths.length||paths.some(p=>typeof p!=='string'||!plan.skillFiles.some(f=>f.path===p)))throw new Error('无效的技能选择');
+  if(createEntry&&paths.length!==plan.skillFiles.length)throw new Error('统一入口需要选择整个合集');
+  const {verifyInstalled,installOrIndex}=require('./installation.cjs');
+  const prepared=[],names=new Set();
+  for(const p of paths){
+   let metadata;try{metadata=await inspect(token,p);}catch(error){prepared.push({path:p,error:error.message});continue;}
+   const key=metadata.name.toLowerCase();if(names.has(key))throw new Error('所选技能包含同名安装目录：'+metadata.name);
+   names.add(key);prepared.push({path:p,...metadata});
+  }
+  const items=[];let entry=null;
+  try{
+   for(const [index,skill]of prepared.entries()){
+    onProgress(`正在安装 ${index+1}/${prepared.length} · ${skill.name||skill.path}`);
+    try{
+     if(skill.error)throw new Error(skill.error);
+     await inspect(token,skill.path);
+     const result=await installOrIndex({install:(t,d)=>install(t,d,true)},token,directory);
+     await verifyInstalled(result.directory,result.name);
+     items.push({...result,path:skill.path,status:result.existing?'existing':'installed'});
+    }catch(error){items.push({path:skill.path,name:skill.name||skill.path,status:'failed',error:error.message});}
+   }
+   if(createEntry){
+    if(items.some(i=>i.status==='failed'))entry={status:'skipped',error:'部分成员安装失败，未创建不完整的统一入口。'};
+    else try{entry=await require('./suite.cjs').createSuite(await fs.realpath(directory),plan.result.repository,plan.commit,prepared);await verifyInstalled(entry.directory,entry.name);}catch(error){entry={status:'failed',error:error.message};}
+   }
+   return{repository:plan.result.repository,items,entry};
+  }finally{await plan.snapshot?.dispose();plans.delete(token);}
+ }
+ return{preview,inspect,install,installBatch,dispose};
 }
 module.exports={parseLink,safeRelative,blobHash,createImporter};

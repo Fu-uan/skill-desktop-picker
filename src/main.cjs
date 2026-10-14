@@ -21,6 +21,20 @@ const defaultSources = () => [
 const storePath = () => path.join(app.getPath('userData'),'settings.json');
 async function save(){await fs.writeFile(storePath(),JSON.stringify(settings,null,2));}
 function installTarget(agent){return destinationFor(agent,settings,home,path.join(app.getPath('userData'),'skills'));}
+async function installCollection(token,agent,paths,createEntry){
+  if(importBusy||previewController)throw new Error('正在导入，请稍候');
+  const target=installTarget(agent);if(!target.directory)throw new Error('请先配置安装目录');
+  importBusy=true;
+  try{
+    await fs.mkdir(target.directory,{recursive:true});
+    const result=await importer.installBatch(token,target.directory,paths,{createEntry:createEntry===true,onProgress:text=>{if(win&&!win.isDestroyed())win.webContents.send('import-progress',text);}});
+    settings.installations ||= {};
+    for(const item of [...result.items,result.entry].filter(Boolean))if(item.status==='installed')settings.installations[item.directory]={agent,name:item.name,files:item.files,checkedAt:new Date().toISOString()};
+    if(!settings.sources.some(s=>s.path===target.directory&&s.agent===agent))settings.sources.push({path:target.directory,agent});
+    await save();
+    return{...result,notice:'已存在的技能保留本地版本，未与远端比较。统一入口为本地生成；请重新打开目标 Agent 会话。文件检查不代表运行验证通过。'};
+  }finally{importBusy=false;}
+}
 async function installSkill(token,agent,local){
   if(importBusy)throw new Error('正在安装，请稍候');
   const target=installTarget(agent);
@@ -62,11 +76,12 @@ app.whenReady().then(async()=>{
   handle('open-skill',id=>{const s=catalog.find(s=>s.id===id);if(s)shell.showItemInFolder(s.file);});
   handle('import-preview',async link=>{if(importBusy||previewController)throw new Error('正在导入，请稍候');previewController=new AbortController();try{return await importer.preview(link);}finally{previewController=null;}});
   handle('import-cancel',()=>previewController?.abort());
-  handle('import-inspect',(token,skillPath)=>{if(importBusy)throw new Error('正在导入，请稍候');return importer.inspect(token,skillPath);});
+  handle('import-inspect',async(token,skillPath)=>{if(importBusy)throw new Error('正在导入，请稍候');const skill=await importer.inspect(token,skillPath);return{...skill,display:displayFor(skill)};});
   handle('import-target',agent=>installTarget(agent));
   handle('import-destination',async agent=>{if(importBusy)throw new Error('正在安装，请稍候');const current=installTarget(agent);const result=await dialog.showOpenDialog(win,{properties:['openDirectory','createDirectory'],defaultPath:current.directory||home,title:'设置此 Agent 的技能安装目录'});if(!result.canceled){settings.installDirectories ||= {};settings.installDirectories[agent]=result.filePaths[0];await save();}return installTarget(agent);});
   handle('import-local',async()=>{if(importBusy)throw new Error('正在安装，请稍候');const result=await dialog.showOpenDialog(win,{properties:['openDirectory'],title:'选择包含 SKILL.md 的技能文件夹'});return result.canceled?null:localImporter.preview(result.filePaths[0]);});
   handle('import-install',(token,agent,local)=>installSkill(token,agent,local===true));
+  handle('import-batch',installCollection);
   handle('ready',()=>{if(process.argv.includes('--smoke-test')){console.log(JSON.stringify({windowLoaded:true,rendererReady:true,skills:catalog.length}));app.quit();}});
   win.webContents.on('render-process-gone',(_,details)=>console.error('renderer stopped:',details.reason));
   await win.loadFile(path.join(__dirname,'index.html'));

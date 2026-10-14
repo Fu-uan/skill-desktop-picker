@@ -36,7 +36,19 @@ app.whenReady().then(async()=>{
     await run("Array.from(document.querySelectorAll('#import-panel button')).find(b=>b.textContent==='读取链接').click();Array.from(document.querySelectorAll('#import-panel button')).find(b=>b.textContent==='取消下载').click()");
     await wait("document.querySelector('#import-panel input').disabled===false");
     assert.match(await run("document.querySelector('.import-progress').textContent"),/已取消下载/);
-    const result={passed:true,checks:['isolated sources','isolated installer','single-skill auto-preview','default destination','install result','installed badge','cancel restores controls'],screenshots:out};
+    await run("document.querySelector('#import-panel input').value='https://github.com/example/collection';Array.from(document.querySelectorAll('#import-panel button')).find(b=>b.textContent==='读取链接').click()");
+    await wait("document.querySelectorAll('.collection-choice input:checked').length===2");
+    assert.equal(await run("document.querySelector('#create-suite').checked && !document.querySelector('#create-suite').disabled"),true);
+    await capture('collection');
+    await run("Array.from(document.querySelectorAll('#import-panel button')).find(b=>b.textContent==='取消全选').click()");
+    assert.equal(await run("document.querySelector('#install-confirm').disabled"),true);
+    await run("document.querySelector('.collection-choice input').click()");
+    assert.equal(await run("document.querySelector('#create-suite').disabled"),true);
+    await run("Array.from(document.querySelectorAll('#import-panel button')).find(b=>b.textContent==='全选').click();document.querySelector('#install-confirm').click()");
+    await wait("!document.querySelector('.install-result').hidden");
+    assert.match(await run("document.querySelector('.install-result').textContent"),/统一入口.*已创建/);
+    await capture('collection-result');
+    const result={passed:true,checks:['isolated sources','isolated installer','single-skill auto-preview','default destination','install result','installed badge','cancel restores controls','collection default all','empty selection disabled','subset disables suite','suite result'],screenshots:out};
     await fs.writeFile(path.join(out,'result.json'),JSON.stringify(result));console.log(JSON.stringify(result));app.quit();
   }catch(error){await fs.mkdir(out,{recursive:true});await fs.writeFile(path.join(out,'result.json'),JSON.stringify({passed:false,error:error.message}));console.error(error);app.exit(1);}
 });

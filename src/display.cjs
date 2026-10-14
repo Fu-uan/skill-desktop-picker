@@ -1,6 +1,12 @@
 const crypto = require('node:crypto');
 // Display-only Chinese glosses. They never replace the source skill or its invocation name.
 const glossary = {
+ 'obsidian-markdown':['Obsidian 笔记编写','创建和编辑支持双链、嵌入、提示块及属性的 Obsidian Markdown 笔记。'],
+ 'obsidian-bases':['Obsidian 数据库视图','创建和编辑 Bases 的视图、筛选、公式与汇总。'],
+ 'json-canvas':['Obsidian 白板','创建和编辑 Canvas 白板中的节点、连线与分组。'],
+ 'obsidian-cli':['Obsidian 笔记库操作','通过 Obsidian CLI 操作笔记库，并辅助插件与主题开发。'],
+ 'defuddle':['网页提取为笔记','提取网页正文，转为干净的 Markdown 内容。'],
+ 'knap':['模板批量生成笔记','使用 JSON 或 CSV 数据渲染 Markdown 模板并批量生成文件。'],
  'anti-defensive-writing':['反防御性论文写作','围绕论文贡献组织论证，识别并修改防御性写作、过度自我质疑和实验流水账。'],
  'anysearch':['联网检索','搜索网络与专业领域资料，批量查询并提取网页内容。'],
  'brainstorming':['需求与方案讨论','澄清需求，比较设计方案，再进入实施。'],
